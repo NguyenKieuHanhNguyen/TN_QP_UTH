@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ôn Tập Trắc Nghiệm GDQP-AN - UTH</title>
+  <style>
+    :root {
+      --primary: #1565c0;
+      --primary-light: #e3f2fd;
+      --correct: #2e7d32;
+      --wrong: #c62828;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+    }
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.6; }
+    .container { max-width: 860px; margin: auto; }
+    header {
+      text-align: center;
+      padding: 24px;
+      background: var(--card-bg);
+      border-radius: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+    h1 { margin: 0 0 8px 0; color: var(--primary); font-size: 24px; }
+    .tabs { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; }
+    .tab-btn {
+      padding: 10px 22px;
+      border: 2px solid var(--primary);
+      background: transparent;
+      color: var(--primary);
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .tab-btn.active, .tab-btn:hover { background: var(--primary); color: #fff; }
+    .dashboard {
+      position: sticky;
+      top: 12px;
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      z-index: 100;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    .q-card {
+      background: var(--card-bg);
+      padding: 22px;
+      margin-bottom: 18px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .q-text { font-weight: 600; font-size: 16px; margin-bottom: 14px; }
+    .options { display: flex; flex-direction: column; gap: 9px; }
+    .opt-btn {
+      text-align: left;
+      padding: 12px 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14.5px;
+      transition: all 0.2s;
+    }
+    .opt-btn:hover:not(.locked) { background: #f1f5f9; }
+    .opt-btn.correct { background: #dcfce7 !important; border-color: var(--correct) !important; color: var(--correct); font-weight: bold; }
+    .opt-btn.wrong { background: #fee2e2 !important; border-color: var(--wrong) !important; color: var(--wrong); }
+    .locked { cursor: default; }
+    .feedback-box {
+      display: none;
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: var(--primary-light);
+      border-left: 5px solid var(--primary);
+      font-size: 14px;
+    }
+    .feedback-box.active { display: block; }
+    .tip-box {
+      margin-top: 8px;
+      color: #92400e;
+      background: #fef3c7;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border-left: 3px solid #f59e0b;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Hệ Thống Trắc Nghiệm Ôn Tập GDQP-AN</h1>
+    <p>Bộ câu hỏi ôn tập theo tài liệu GDQP-AN Trường ĐH Giao thông vận tải TP.HCM (UTH)</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="changeSection('hp1')">Học phần I (75 câu)</button>
+    <button class="tab-btn" onclick="changeSection('hp2')">Học phần II (75 câu)</button>
+  </div>
+
+  <div class="dashboard">
+    <span id="labelSection">Đang chọn: Học phần I</span>
+    <span id="scoreDisplay">Tiến độ: 0/0 câu | Điểm: 0</span>
+  </div>
+
+  <div id="quizArea"></div>
+</div>
+
+<!-- Nạp tệp dữ liệu câu hỏi -->
+<script src="questions.js"></script>
+
+<script>
+let currentSection = 'hp1';
+let answeredRecord = {};
+
+function changeSection(sec) {
+  currentSection = sec;
+  document.querySelectorAll('.tab-btn').forEach((b, idx) => {
+    b.classList.toggle('active', (sec === 'hp1' && idx === 0) || (sec === 'hp2' && idx === 1));
+  });
+  document.getElementById('labelSection').innerText = sec === 'hp1' ? 'Đang chọn: Học phần I' : 'Đang chọn: Học phần II';
+  renderList();
+}
+
+function renderList() {
+  const container = document.getElementById('quizArea');
+  container.innerHTML = '';
+  const dataset = (window.quizDatabase && window.quizDatabase[currentSection]) || [];
+
+  dataset.forEach((item) => {
+    const card = document.createElement('div');
+    card.className = 'q-card';
+    card.id = `card-${item.id}`;
+
+    let opts = '';
+    item.options.forEach((optText, oIdx) => {
+      opts += `<button class="opt-btn" onclick="submitChoice(${item.id}, ${oIdx})">${optText}</button>`;
+    });
+
+    card.innerHTML = `
+      <div class="q-text">Câu ${item.id}: ${item.q}</div>
+      <div class="options">${opts}</div>
+      <div class="feedback-box" id="feedback-${item.id}">
+        <div id="res-${item.id}" style="margin-bottom: 6px;"></div>
+        <div><strong>Giải thích:</strong> ${item.explain}</div>
+        <div class="tip-box">💡 <strong>Mẹo nhớ nhanh:</strong> ${item.memo}</div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  calculateScore();
+}
+
+function submitChoice(qId, chosenIndex) {
+  const dataset = window.quizDatabase[currentSection];
+  const qObj = dataset.find(x => x.id === qId);
+  const recordKey = `${currentSection}_${qId}`;
+
+  if (!qObj || answeredRecord[recordKey] !== undefined) return;
+  answeredRecord[recordKey] = chosenIndex;
+
+  const card = document.getElementById(`card-${qId}`);
+  const buttons = card.querySelectorAll('.opt-btn');
+  const fb = document.getElementById(`feedback-${qId}`);
+  const res = document.getElementById(`res-${qId}`);
+
+  buttons.forEach((btn, idx) => {
+    btn.classList.add('locked');
+    if (idx === qObj.answer) btn.classList.add('correct');
+    if (idx === chosenIndex && chosenIndex !== qObj.answer) btn.classList.add('wrong');
+  });
+
+  if (chosenIndex === qObj.answer) {
+    res.innerHTML = "<span style='color: var(--correct); font-weight: bold;'>Đúng hoàn toàn! 🎉</span>";
+  } else {
+    res.innerHTML = `<span style='color: var(--wrong); font-weight: bold;'>Chưa chính xác! Đáp án đúng: ${String.fromCharCode(65 + qObj.answer)}</span>`;
+  }
+
+  fb.classList.add('active');
+  calculateScore();
+}
+
+function calculateScore() {
+  const dataset = (window.quizDatabase && window.quizDatabase[currentSection]) || [];
+  let count = 0;
+  let correct = 0;
+
+  dataset.forEach(item => {
+    const userChoice = answeredRecord[`${currentSection}_${item.id}`];
+    if (userChoice !== undefined) {
+      count++;
+      if (userChoice === item.answer) correct++;
+    }
+  });
+
+  document.getElementById('scoreDisplay').innerText = `Tiến độ: ${count}/${dataset.length} câu | Đúng: ${correct}/${dataset.length}`;
+}
+
+// Khởi chạy khi load
+window.onload = () => {
+  renderList();
+};
+</script>
+</body>
+</html>
